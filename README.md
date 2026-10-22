@@ -1,5 +1,5 @@
-# queue hop (presented by group pentad)
-
+#presented by group pentad
+# queue hop
 desperately waiting in line for lifts at HKU station exit A...(sigh)
 
 so we make a single-button browser game about jumping the exit A lift queue before your 9:00 class.
