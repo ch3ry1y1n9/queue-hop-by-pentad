@@ -67,7 +67,7 @@ function renderMode(ctx) {
   });
 
   btn(ctx, 60, 630, 160, 60, 'back', function() { G.screen = 'title'; });
-  SK.text(ctx, 'this game is fictional. please queue properly in real life.', 640, 690, 18);
+  SK.text(ctx, 'this game is fictional. please queue properly in real life. © MKTG3524 Group Pentad', 640, 690, 18);
 }
 
 /* ---------------- BRIEFING ---------------- */
