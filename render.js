@@ -36,7 +36,7 @@ function renderTitle(ctx) {
   SK.text(ctx, 'class check-in is at 9:00 sharp.', 640, 380, 28);
   SK.text(ctx, 'jump the queue when people are not looking.', 640, 420, 28);
 
-  SK.text(ctx, 'this game is fictional. please queue properly in real life. © MKTG3524 Group Pentad', 640, 690, 18);
+  SK.text(ctx, 'this game is fictional. please queue properly in real life.', 640, 690, 18);
   SK.text(ctx, 'fonts: fonts.google.com/specimen/Gaegu', 1240, 30, 13, SK.grey, 'right');
 
   SK.text(ctx, 'start', 640, 625, 32);
@@ -67,7 +67,7 @@ function renderMode(ctx) {
   });
 
   btn(ctx, 60, 630, 160, 60, 'back', function() { G.screen = 'title'; });
-  SK.text(ctx, 'this game is fictional. please queue properly in real life. © MKTG3524 Group Pentad', 640, 690, 18);
+  SK.text(ctx, 'this game is fictional. please queue properly in real life.', 640, 690, 18);
 }
 
 /* ---------------- BRIEFING ---------------- */
