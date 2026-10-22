@@ -1,6 +1,3 @@
-**#presented by group pentad**
----
-
 # queue hop
 desperately waiting in line for lifts at HKU station exit A...(sigh)
 
@@ -51,3 +48,6 @@ THIS GAME IS FICTIONAL. PLEASE QUEUE PROPERLY IN REAL LIFE.
 ## acknowledgement
 
 fonts: [gaegu](https://fonts.google.com/specimen/Gaegu) via google fonts
+
+---
+**#presented by group pentad**
