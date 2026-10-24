@@ -1,21 +1,503 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>queue hop</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Queue Hop - HKU MTR Edition</title>
+    <style>
+        :root {
+            --hku-green: #006039;
+            --hku-gold: #d4af37;
+            --mtr-dark: #1b2631;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            font-family: 'Arial Rounded MT Bold', sans-serif;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        /* HUD OVERLAY */
+        .hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .gpa-display {
+            font-size: 20px;
+            color: var(--hku-gold);
+            font-weight: 900;
+        }
+        .level-badge {
+            background: var(--hku-green);
+            border: 2px solid var(--hku-gold);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+            color: #fff;
+        }
+        .bar-bg {
+            width: 100%;
+            background: rgba(0,0,0,0.7);
+            height: 14px;
+            border-radius: 7px;
+            overflow: hidden;
+            border: 1px solid var(--hku-gold);
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            transition: width 0.2s linear;
+        }
+        .bar-text {
+            position: absolute;
+            width: 100%;
+            top: 0;
+            left: 0;
+            text-align: center;
+            font-size: 10px;
+            line-height: 14px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px #000;
+        }
+        /* TOUCH CONTROLS */
+        .touch-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 45%;
+            display: flex;
+            z-index: 10;
+        }
+        .touch-btn {
+            flex: 1;
+            opacity: 0;
+        }
+        /* OVERLAYS & PAGES */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(27, 38, 49, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            padding: 24px;
+            text-align: center;
+            z-index: 30;
+        }
+        .hidden { display: none !important; }
+        .btn {
+            background: var(--hku-green);
+            color: white;
+            border: 2px solid var(--hku-gold);
+            padding: 14px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0,96,57,0.6);
+        }
+        .btn:active { transform: scale(0.96); }
+        .rules-card {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--hku-gold);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: left;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #eee;
+            max-width: 360px;
+        }
+        .rules-card h3 {
+            color: var(--hku-gold);
+            margin-bottom: 6px;
+        }
+        .rules-card ul { padding-left: 18px; }
+    </style>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-<canvas id="game" width="1280" height="720"></canvas>
-<div id="hint">rotate for a bigger view</div>
-<script src="config.js"></script>
-<script src="sketch.js"></script>
-<script src="game.js"></script>
-<script src="render.js"></script>
-<script src="main.js"></script>
+
+<div id="canvas-container"></div>
+
+<!-- HUD -->
+<div class="hud hidden" id="game-hud">
+    <div class="hud-top">
+        <div class="gpa-display">GPA: <span id="gpa-val">4.00</span></div>
+        <div class="level-badge" id="level-title">MTR Corridor: Exit A</div>
+    </div>
+    <div class="bar-bg">
+        <div class="bar-fill" id="caffeine-bar" style="width: 80%; background: var(--hku-gold);"></div>
+        <div class="bar-text" id="caffeine-txt">CAFFEINE: 80%</div>
+    </div>
+    <div class="bar-bg">
+        <div class="bar-fill" id="progress-bar" style="width: 0%; background: var(--hku-green);"></div>
+        <div class="bar-text" id="progress-txt">QUEUE PROGRESS: 0%</div>
+    </div>
+</div>
+
+<!-- TOUCH CONTROLS -->
+<div class="touch-controls">
+    <div class="touch-btn" id="left-touch"></div>
+    <div class="touch-btn" id="right-touch"></div>
+</div>
+
+<!-- TITLE PAGE -->
+<div class="overlay" id="title-overlay">
+    <h1 style="color: var(--hku-gold); font-size: 32px; margin-bottom: 8px;">QUEUE HOP</h1>
+    <p style="font-size: 14px; color: #ccc; margin-bottom: 20px;">HKU Exit A MTR Station Edition</p>
+    <button class="btn" id="to-rules-btn">How to Play ➔</button>
+</div>
+
+<!-- RULES PAGE -->
+<div class="overlay hidden" id="rules-overlay">
+    <h2 style="color: var(--hku-gold); font-size: 24px; margin-bottom: 10px;">GAME RULES</h2>
+    <div class="rules-card">
+        <h3>🎮 Controls</h3>
+        <ul>
+            <li>Use <strong>◀ / ▶ Arrow keys</strong> or <strong>A / D</strong> to hop lanes.</li>
+            <li>On mobile, tap the left or right side of the screen.</li>
+        </ul>
+        <h3 style="margin-top: 10px;">🎯 Objectives</h3>
+        <ul>
+            <li>Avoid slow crowds and assignment blocks!</li>
+            <li>Collect iced coffee to boost caffeine & GPA.</li>
+            <li>Reach the end of the MTR queue to win!</li>
+        </ul>
+    </div>
+    <button class="btn" id="start-btn">START RUN 🚀</button>
+</div>
+
+<!-- GAMEOVER OVERLAY -->
+<div class="overlay hidden" id="end-overlay">
+    <h2 id="end-title" style="font-size: 26px; margin-bottom: 10px;">QUEUE CONQUERED!</h2>
+    <p style="font-size: 16px; margin-bottom: 20px;" id="end-sub">Final GPA: <span id="final-gpa" style="color:var(--hku-gold); font-weight:bold;">4.00</span></p>
+    <button class="btn" id="restart-btn">PLAY AGAIN</button>
+</div>
+
+<script>
+// --- AUDIO SYNTHESIS ---
+let audioCtx = null;
+function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playBeep(freq, type, duration) {
+    if (!audioCtx) return;
+    try {
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    } catch(e) {}
+}
+
+// --- GAME & THREE.JS SETUP ---
+const container = document.getElementById('canvas-container');
+let scene, camera, renderer;
+let player, track;
+let obstacles = [];
+let gameRunning = false;
+
+let gpa = 4.00;
+let caffeine = 80;
+let queueProgress = 0;
+let targetLane = 1; 
+let lanes = [-1.5, 0, 1.5];
+let gameSpeed = 0.22;
+let spawnCounter = 0;
+
+function init3D() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x32483d); // MTR green-grey ambient tint
+
+    // CAMERA POSITIONED BEHIND THE PLAYER LOOKING DOWN THE LINE (Third-person runner view)
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 3.2, 5.2);
+    camera.lookAt(0, 1.8, -10);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Lighting matching MTR fluorescent panels
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(0, 10, 5);
+    scene.add(dirLight);
+
+    // --- MTR CORRIDOR ENVIRONMENT (Matching Reference Photo) ---
+    // Floor
+    const floorGeo = new THREE.PlaneGeometry(8, 200);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0xcfd6bc, roughness: 0.6 });
+    track = new THREE.Mesh(floorGeo, floorMat);
+    track.rotation.x = -Math.PI / 2;
+    track.position.z = -80;
+    scene.add(track);
+
+    // Green Tiled Walls (Left & Right)
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x528c6e, roughness: 0.4 });
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(200, 15), wallMat);
+    leftWall.position.set(-4, 6, -80);
+    leftWall.rotation.y = Math.PI / 2;
+    scene.add(leftWall);
+
+    const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(200, 15), wallMat);
+    rightWall.position.set(4, 6, -80);
+    rightWall.rotation.y = -Math.PI / 2;
+    scene.add(rightWall);
+
+    // Arched Ceiling
+    const ceilingGeo = new THREE.CylinderGeometry(4.2, 4.2, 200, 16, 1, true, 0, Math.PI);
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xd8dec3, roughness: 0.7, side: THREE.DoubleSide });
+    const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
+    ceiling.rotation.z = Math.PI / 2;
+    ceiling.position.set(0, 10, -80);
+    scene.add(ceiling);
+
+    // Hanging MTR Directional Signs (Exit A / Trains)
+    createHangingSign(-15);
+    createHangingSign(-45);
+    createHangingSign(-75);
+
+    // --- PLAYER CHARACTER (Viewing Back of Head / Hoodie) ---
+    const playerGroup = new THREE.Group();
+    
+    // Body (Blue HKU Student Shirt)
+    const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.4), new THREE.MeshStandardMaterial({ color: 0x2b4c7e }));
+    bodyMesh.position.y = 0.45;
+    playerGroup.add(bodyMesh);
+
+    // Head / Back of Hair (Dark brown hair facing away)
+    const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xffd1b3 }));
+    headMesh.position.y = 1.15;
+    playerGroup.add(headMesh);
+
+    const hairMesh = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.3, 0.3), new THREE.MeshStandardMaterial({ color: 0x2c1d0c }));
+    hairMesh.position.set(0, 1.25, -0.1);
+    playerGroup.add(hairMesh);
+
+    // Backpack (HKU Green)
+    const bagMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), new THREE.MeshStandardMaterial({ color: 0x006039 }));
+    bagMesh.position.set(0, 0.5, -0.32);
+    playerGroup.add(bagMesh);
+
+    player = playerGroup;
+    player.position.set(lanes[targetLane], 0, 0);
+    scene.add(player);
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+}
+
+function createHangingSign(zPos) {
+    const signGroup = new THREE.Group();
+    // Metal bracket bars
+    const barMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+    const bar1 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2), barMat);
+    bar1.position.set(-1.2, 9, zPos);
+    signGroup.add(bar1);
+    const bar2 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2), barMat);
+    bar2.position.set(1.2, 9, zPos);
+    signGroup.add(bar2);
+
+    // Green Sign Board
+    const boardGeo = new THREE.BoxGeometry(3.2, 0.8, 0.1);
+    const boardMat = new THREE.MeshStandardMaterial({ color: 0x006039 });
+    const board = new THREE.Mesh(boardGeo, boardMat);
+    board.position.set(0, 7.8, zPos);
+    signGroup.add(board);
+    scene.add(signGroup);
+}
+
+// --- CONTROLS ---
+function moveLeft() {
+    if (!gameRunning) return;
+    if (targetLane > 0) { targetLane--; playBeep(400, 'sine', 0.05); }
+}
+function moveRight() {
+    if (!gameRunning) return;
+    if (targetLane < 2) { targetLane++; playBeep(400, 'sine', 0.05); }
+}
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') moveLeft();
+    if (e.key === 'ArrowRight' || e.key === 'd') moveRight();
+});
+document.getElementById('left-touch').addEventListener('click', moveLeft);
+document.getElementById('right-touch').addEventListener('click', moveRight);
+
+// --- NAVIGATION FLOW ---
+document.getElementById('to-rules-btn').addEventListener('click', () => {
+    initAudio();
+    document.getElementById('title-overlay').classList.add('hidden');
+    document.getElementById('rules-overlay').classList.remove('hidden');
+});
+
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+
+function startGame() {
+    gpa = 4.00;
+    caffeine = 80;
+    queueProgress = 0;
+    targetLane = 1;
+    document.getElementById('rules-overlay').classList.add('hidden');
+    document.getElementById('end-overlay').classList.add('hidden');
+    document.getElementById('game-hud').classList.remove('hidden');
+
+    obstacles.forEach(o => scene.remove(o.mesh));
+    obstacles = [];
+    gameRunning = true;
+}
+
+function spawnObstacle() {
+    const lane = Math.floor(Math.random() * 3);
+    const isCoffee = Math.random() < 0.35;
+    
+    let mesh;
+    if (isCoffee) {
+        const geo = new THREE.CylinderGeometry(0.25, 0.25, 0.7, 12);
+        mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xd2b48c }));
+        mesh.position.set(lanes[lane], 0.35, -60);
+        mesh.userData = { type: 'coffee' };
+    } else {
+        const geo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+        mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xc0392b }));
+        mesh.position.set(lanes[lane], 0.5, -60);
+        mesh.userData = { type: 'danger' };
+    }
+
+    scene.add(mesh);
+    obstacles.push({ mesh: mesh, lane: lane });
+}
+
+function updateHUD() {
+    document.getElementById('gpa-val').textContent = Math.max(0, gpa).toFixed(2);
+    document.getElementById('caffeine-bar').style.width = caffeine + '%';
+    document.getElementById('caffeine-txt').textContent = 'CAFFEINE: ' + Math.floor(caffeine) + '%';
+    document.getElementById('progress-bar').style.width = queueProgress + '%';
+    document.getElementById('progress-txt').textContent = 'QUEUE PROGRESS: ' + Math.floor(queueProgress) + '%';
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    if (gameRunning) {
+        // Smooth lane shifting
+        let targetX = lanes[targetLane];
+        player.position.x += (targetX - player.position.x) * 0.25;
+
+        queueProgress += 0.25;
+        caffeine = Math.max(0, caffeine - 0.015);
+        updateHUD();
+
+        if (queueProgress >= 100) {
+            endGame(true);
+            return;
+        }
+
+        spawnCounter++;
+        if (spawnCounter > 50) {
+            spawnObstacle();
+            spawnCounter = 0;
+        }
+
+        // Move obstacles toward the camera (passing the player at z = 0)
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            let obs = obstacles[i];
+            obs.mesh.position.z += gameSpeed;
+
+            // Collision detection with player at z = 0
+            if (Math.abs(obs.mesh.position.z - player.position.z) < 0.8 && obs.lane === targetLane) {
+                if (obs.mesh.userData.type === 'coffee') {
+                    caffeine = Math.min(100, caffeine + 20);
+                    gpa = Math.min(4.30, gpa + 0.05);
+                    playBeep(800, 'triangle', 0.1);
+                } else {
+                    gpa -= 0.35;
+                    playBeep(150, 'sawtooth', 0.2);
+                    if (gpa <= 0) {
+                        gpa = 0;
+                        endGame(false);
+                    }
+                }
+                scene.remove(obs.mesh);
+                obstacles.splice(i, 1);
+                updateHUD();
+            } else if (obs.mesh.position.z > 6) {
+                scene.remove(obs.mesh);
+                obstacles.splice(i, 1);
+            }
+        }
+    }
+
+    renderer.render(scene, camera);
+}
+
+function endGame(survived) {
+    gameRunning = false;
+    document.getElementById('game-hud').classList.add('hidden');
+    document.getElementById('end-overlay').classList.remove('hidden');
+    document.getElementById('final-gpa').textContent = gpa.toFixed(2);
+    
+    if (survived) {
+        document.getElementById('end-title').textContent = "EXIT A REACHED!";
+        document.getElementById('end-sub').innerHTML = `Final GPA: <span style="color:var(--hku-gold);">${gpa.toFixed(2)}</span>`;
+    } else {
+        document.getElementById('end-title').textContent = "ACADEMIC PROBATION!";
+        document.getElementById('end-sub').innerHTML = `GPA Dropped to 0.00`;
+    }
+}
+
+init3D();
+animate();
+</script>
 </body>
 </html>
